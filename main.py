@@ -9,6 +9,12 @@ from win32api import GetMonitorInfo, MonitorFromPoint
 
 currentPath = __file__.split("main.py")[0]
 
+numberOfMessagesShown = 12
+screenMinHeight = 25
+screenMaxHeight = 300
+
+closed = False
+
 windowHeight = 0
 windowWidth = 0
 timeToWaitForScan = 90
@@ -28,7 +34,7 @@ top.wm_attributes("-topmost", 1)
 
 loadingText = tkinter.Label(top, text="Loading...")
 loadingText.pack(side="bottom", fill="both", expand="yes")
-windowHeight = 25
+windowHeight = screenMinHeight
 windowWidth = 300
 top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth - windowWidth) +
              "+" + str(screenHeight - windowHeight))
@@ -36,7 +42,7 @@ top.update()
 
 chromeOptions = Options()
 chromeOptions.add_argument("user-data-dir=" + currentPath + "selenium")
-chromeOptions.add_argument('headless')
+# chromeOptions.add_argument('headless')
 chromeOptions.add_argument(
     "user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3312.0 Safari/537.36")
 chromeOptions.add_argument("remote-debugging-port=9222")
@@ -52,11 +58,32 @@ qrCodeScanned = True
 
 def closeButton():
     global driver
-    global top
 
     driver.quit()
-    top.destroy()
     exit()
+
+
+def minimiseButton():
+    global top
+    global closed
+    global minimiseButton
+
+    closed = not closed
+
+    if (closed):
+        windowHeight = screenMinHeight
+        windowWidth = 300
+        top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth - windowWidth) +
+                     "+" + str(screenHeight - windowHeight))
+        minimiseButton["text"] = "ᐱ"
+        top.update()
+    else:
+        windowHeight = screenMaxHeight
+        windowWidth = 300
+        top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth - windowWidth) +
+                     "+" + str(screenHeight - windowHeight))
+        minimiseButton["text"] = "ᐯ"
+        top.update()
 
 
 def getChatContactsListNames(chatContactsListItem):
@@ -69,12 +96,37 @@ def getChatContactsListNames(chatContactsListItem):
 
 
 def getMessageText(parentClass):
-    messageTimeAndSource = parentClass.text.rsplit("\n", 1)
+    inputText = parentClass.text.rsplit("\n", 1)
+    messageSourceTime = []
+    n = 40
+
+    timeSent = ""
+    inOut = "0"
+
+    try:
+        timeSent = inputText[1]
+    except:
+        pass
+
+    chunks = [inputText[0][i:i+n]
+              for i in range(0, len(inputText[0]), n)]
+
     if ("message-in" in parentClass.get_attribute("class")):
-        messageTimeAndSource.append("0")
+        inputText.append("0")
+        inOut = "0"
     if ("message-out" in parentClass.get_attribute("class")):
-        messageTimeAndSource.append("1")
-    return (messageTimeAndSource)
+        inputText.append("1")
+        inOut = "1"
+
+    for chunk in chunks:
+        messageSourceTimeAdd = []
+        messageSourceTimeAdd.append(chunk)
+        if (timeSent != ""):
+            messageSourceTimeAdd.append(timeSent)
+        messageSourceTimeAdd.append(inOut)
+        messageSourceTime.append(messageSourceTimeAdd)
+
+    return (messageSourceTime)
 
 
 def setCurrentChat(currentChatName, chatContactsListNames, chatContactsList):
@@ -104,20 +156,24 @@ def updateChatMessages():
         allMessages = driver.find_elements_by_css_selector("div.tSmQ1 > div")
         allMessagesTextTemp = list(
             map(lambda currentMessage: getMessageText(currentMessage), allMessages))
+        allMessagesTextTemp = [
+            item for sublist in allMessagesTextTemp for item in sublist]
         allMessagesText = list(
-            filter(lambda item: len(item) == 3, allMessagesTextTemp))[-7:]
+            filter(lambda item: len(item) == 3, allMessagesTextTemp))[-numberOfMessagesShown:]
+        print(allMessagesText)
     except:
         pass
 
-    if (len(allMessagesText) == 7):
-        for i in range(7):
+    if (len(allMessagesText) == numberOfMessagesShown):
+        print()
+        for i in range(numberOfMessagesShown):
             messagesList[i]["text"] = allMessagesText[i][0]
             if (allMessagesText[i][2] == "0"):
                 messagesList[i]["anchor"] = tkinter.constants.W
             else:
                 messagesList[i]["anchor"] = tkinter.constants.E
     else:
-        for i in range(7):
+        for i in range(numberOfMessagesShown):
             messagesList[i]["text"] = ""
 
     top.after(1000, updateChatMessages)
@@ -180,7 +236,7 @@ if (qrCodeImg):
 
 loadingText = tkinter.Label(top, text="Loading...")
 loadingText.pack(side="bottom", fill="both", expand="yes")
-windowHeight = 25
+windowHeight = screenMinHeight
 windowWidth = 300
 top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth - windowWidth) +
              "+" + str(screenHeight - windowHeight))
@@ -200,28 +256,41 @@ closeButton = tkinter.Button(top, text="X", command=closeButton)
 closeButton.config(width=2)
 closeButton.pack(side=tkinter.LEFT, anchor=tkinter.NW)"""
 
-dropDownMenu = tkinter.OptionMenu(top, listChatNames, *chatContactsListNames,
-                                  command=lambda currentChatName: setCurrentChat(currentChatName, chatContactsListNames, chatContactsList))
-dropDownMenu.config(width=150)
-dropDownMenu.pack()
+topFrame = tkinter.Frame(top)
+topFrame.pack(side=tkinter.TOP, fill="x", expand=True)
 
-windowHeight = 200
+closeButton = tkinter.Button(topFrame, text="X", command=closeButton)
+closeButton.config(width=2)
+closeButton.pack(side=tkinter.LEFT)
+
+dropDownMenu = tkinter.OptionMenu(topFrame, listChatNames, *chatContactsListNames,
+                                  command=lambda currentChatName: setCurrentChat(currentChatName, chatContactsListNames, chatContactsList))
+dropDownMenu.config(width=5)
+dropDownMenu.pack(side=tkinter.LEFT, fill="x", expand=True)
+
+minimiseButton = tkinter.Button(topFrame, text="ᐯ", command=minimiseButton)
+minimiseButton.config(width=2)
+minimiseButton.pack(side=tkinter.LEFT)
+
+windowHeight = screenMaxHeight
 windowWidth = 300
 top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth - windowWidth) +
              "+" + str(screenHeight - windowHeight))
 
-for i in range(7):
+for i in range(numberOfMessagesShown):
     message = tkinter.Label(
         top, text="", anchor=tkinter.constants.W)
     messagesList.append(message)
 
 for message in messagesList:
-    message.pack(fill="x")
+    message.config(width=150)
+    message.pack(side=tkinter.TOP, fill="x", expand=True)
 
 inputBox = tkinter.Entry(top)
 inputBox.bind("<Return>", (lambda event: sendMessage(
     driver, inputBox.get()) or inputBox.delete(0, 'end')))
-inputBox.pack(fill="x")
+inputBox.config(width=150)
+inputBox.pack(side=tkinter.TOP, fill="x", expand=True)
 top.update()
 time.sleep(2)
 
