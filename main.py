@@ -195,15 +195,15 @@ if (loadingText):
     loadingText.destroy()
 
 listChatNames = tkinter.StringVar(top)
-
+"""
 closeButton = tkinter.Button(top, text="X", command=closeButton)
 closeButton.config(width=2)
-closeButton.pack(side=tkinter.LEFT, anchor=tkinter.NW)
+closeButton.pack(side=tkinter.LEFT, anchor=tkinter.NW)"""
 
 dropDownMenu = tkinter.OptionMenu(top, listChatNames, *chatContactsListNames,
                                   command=lambda currentChatName: setCurrentChat(currentChatName, chatContactsListNames, chatContactsList))
 dropDownMenu.config(width=150)
-dropDownMenu.pack(side=tkinter.LEFT, anchor=tkinter.NW)
+dropDownMenu.pack()
 
 windowHeight = 200
 windowWidth = 300
