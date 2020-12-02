@@ -1,4 +1,10 @@
 # WhatsappDesktopPlusPlus-Python
  
+ 
+##### Added functionality for viewing images
+
+</br>
+ 
 ###### pip install
-###### selenium bs4 lxml tkinter Pillow pywin32(win32api) requests
+###### selenium bs4 lxml tkinter Pillow pywin32(win32api) base64
+
