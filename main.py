@@ -1,3 +1,4 @@
+from win32api import GetMonitorInfo, MonitorFromPoint
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -5,7 +6,6 @@ from PIL import ImageTk, Image
 import tkinter
 import time
 import os
-from win32api import GetMonitorInfo, MonitorFromPoint
 
 currentPath = __file__.split("main.py")[0]
 
@@ -21,11 +21,12 @@ timeToWaitForScan = 90
 
 currentChat = None
 messagesList = []
+imageUrls = []
 
 top = tkinter.Tk()
 
-monitor_info = GetMonitorInfo(MonitorFromPoint((0, 0)))
-work_area = monitor_info.get("Work")
+monitorInfo = GetMonitorInfo(MonitorFromPoint((0, 0)))
+workArea = monitor_info.get("Work")
 screenWidth = work_area[2]
 screenHeight = work_area[3]
 
@@ -42,7 +43,7 @@ top.update()
 
 chromeOptions = Options()
 chromeOptions.add_argument("user-data-dir=" + currentPath + "selenium")
-# chromeOptions.add_argument('headless')
+chromeOptions.add_argument('headless')
 chromeOptions.add_argument(
     "user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3312.0 Safari/537.36")
 chromeOptions.add_argument("remote-debugging-port=9222")
@@ -54,6 +55,19 @@ driver.get("http://web.whatsapp.com")
 
 qrCode = False
 qrCodeScanned = True
+
+
+def messageClicked(event):
+    global top
+    global imageUrls
+
+    labelValue = event.widget.cget("text")
+    if ("Click to Open Image" in labelValue):
+        urlNumber = int(labelValue.split("Image ")[1])
+        os.system("DisplayImageMessage.py " + imageUrls[urlNumber - 1])
+    else:
+        top.clipboard_clear()
+        top.clipboard_append(labelValue)
 
 
 def closeButton():
@@ -96,6 +110,13 @@ def getChatContactsListNames(chatContactsListItem):
 
 
 def getMessageText(parentClass):
+    global imageUrls
+
+    imgTag = None
+    try:
+        imgTag = parentClass.find_element_by_tag_name('img')
+    except:
+        pass
     inputText = parentClass.text.rsplit("\n", 1)
     messageSourceTime = []
     n = 40
@@ -118,13 +139,22 @@ def getMessageText(parentClass):
         inputText.append("1")
         inOut = "1"
 
-    for chunk in chunks:
+    if (imgTag is not None):
+        imageUrls.append(imgTag.get_attribute("src"))
         messageSourceTimeAdd = []
-        messageSourceTimeAdd.append(chunk)
-        if (timeSent != ""):
-            messageSourceTimeAdd.append(timeSent)
+        messageSourceTimeAdd.append(
+            "Click to Open Image " + str(len(imageUrls)))
+        messageSourceTimeAdd.append(timeSent)
         messageSourceTimeAdd.append(inOut)
         messageSourceTime.append(messageSourceTimeAdd)
+    else:
+        for chunk in chunks:
+            messageSourceTimeAdd = []
+            messageSourceTimeAdd.append(chunk)
+            if (timeSent != ""):
+                messageSourceTimeAdd.append(timeSent)
+            messageSourceTimeAdd.append(inOut)
+            messageSourceTime.append(messageSourceTimeAdd)
 
     return (messageSourceTime)
 
@@ -142,7 +172,9 @@ def updateChatMessages():
     global messagesList
     global top
     global driver
+    global imageUrls
 
+    imageUrls = []
     allMessagesText = []
 
     try:
@@ -159,13 +191,11 @@ def updateChatMessages():
         allMessagesTextTemp = [
             item for sublist in allMessagesTextTemp for item in sublist]
         allMessagesText = list(
-            filter(lambda item: len(item) == 3, allMessagesTextTemp))[-numberOfMessagesShown:]
-        print(allMessagesText)
+            filter(lambda item: len(item) >= 3, allMessagesTextTemp))[-numberOfMessagesShown:]
     except:
         pass
 
     if (len(allMessagesText) == numberOfMessagesShown):
-        print()
         for i in range(numberOfMessagesShown):
             messagesList[i]["text"] = allMessagesText[i][0]
             if (allMessagesText[i][2] == "0"):
@@ -229,7 +259,6 @@ if (not qrCodeScanned):
 
 if (loadingText):
     loadingText.destroy()
-
 if (qrCodeImg):
     qrCodeImg.destroy()
     top.update()
@@ -280,6 +309,7 @@ top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth 
 for i in range(numberOfMessagesShown):
     message = tkinter.Label(
         top, text="", anchor=tkinter.constants.W)
+    message.bind("<Button-1>", messageClicked)
     messagesList.append(message)
 
 for message in messagesList:
