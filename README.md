@@ -16,4 +16,5 @@
 - [x] Handle Long Messages
 - [x] Minimise and Close Buttons
 - [x] Dark Mode Color Scheme
+- [ ] Notification Dot
 - [ ] Handle Links
