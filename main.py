@@ -6,11 +6,14 @@ from PIL import ImageTk, Image
 import tkinter
 import time
 import os
+import copy
 
 currentPath = __file__.split("main.py")[0]
+dontNotif = False
+dropDownMenu = None
 
 numberOfMessagesShown = 12
-screenMinHeight = 25
+screenMinHeight = 23
 screenMaxHeight = 300
 
 closed = False
@@ -21,20 +24,24 @@ timeToWaitForScan = 90
 
 currentChat = None
 messagesList = []
+prevMessagesList = []
 imageUrls = []
 
 top = tkinter.Tk()
 
 monitorInfo = GetMonitorInfo(MonitorFromPoint((0, 0)))
-workArea = monitor_info.get("Work")
-screenWidth = work_area[2]
-screenHeight = work_area[3]
+workArea = monitorInfo.get("Work")
+screenWidth = workArea[2]
+screenHeight = workArea[3]
 
 top.overrideredirect(1)
 top.wm_attributes("-topmost", 1)
+top.configure(bg="#0d1418")
 
 loadingText = tkinter.Label(top, text="Loading...")
+loadingText.configure(bg="#2a2f32", fg="#e1e2e3")
 loadingText.pack(side="bottom", fill="both", expand="yes")
+
 windowHeight = screenMinHeight
 windowWidth = 300
 top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth - windowWidth) +
@@ -57,6 +64,18 @@ qrCode = False
 qrCodeScanned = True
 
 
+def exitApp():
+    global driver
+    global top
+
+    if os.path.exists(currentPath + "check.png"):
+        os.remove(currentPath + "check.png")
+
+    driver.close()
+    top.destroy()
+    exit()
+
+
 def messageClicked(event):
     global top
     global imageUrls
@@ -71,16 +90,31 @@ def messageClicked(event):
 
 
 def closeButton():
-    global driver
+    exitApp()
 
-    driver.quit()
-    exit()
+
+def setNotifImg(x):
+    global dropDownMenu
+
+    if (x):
+        img = ImageTk.PhotoImage(Image.open(
+            currentPath + "notif.png"))
+        dropDownMenu['image'] = img
+        img.image = img
+    else:
+        img = ImageTk.PhotoImage(Image.open(
+            currentPath + "null.png"))
+        dropDownMenu['image'] = img
+        img.image = img
 
 
 def minimiseButton():
     global top
     global closed
     global minimiseButton
+    global dontNotif
+    global notifImg
+    global dropDownMenu
 
     closed = not closed
 
@@ -90,6 +124,7 @@ def minimiseButton():
         top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth - windowWidth) +
                      "+" + str(screenHeight - windowHeight))
         minimiseButton["text"] = "ᐱ"
+        setNotifImg(False)
         top.update()
     else:
         windowHeight = screenMaxHeight
@@ -97,6 +132,7 @@ def minimiseButton():
         top.geometry(str(windowWidth) + "x" + str(windowHeight) + "+" + str(screenWidth - windowWidth) +
                      "+" + str(screenHeight - windowHeight))
         minimiseButton["text"] = "ᐯ"
+        setNotifImg(False)
         top.update()
 
 
@@ -106,7 +142,7 @@ def getChatContactsListNames(chatContactsListItem):
     if (chatContactsListName != ""):
         return chatContactsListName
     else:
-        return "Chat"
+        return "Emoji"
 
 
 def getMessageText(parentClass):
@@ -161,18 +197,25 @@ def getMessageText(parentClass):
 
 def setCurrentChat(currentChatName, chatContactsListNames, chatContactsList):
     global driver
+    global dontNotif
 
     currentChat = currentChatName
     chatContactsList[chatContactsListNames.index(currentChatName)].click()
-    time.sleep(1)
-    updateChatMessages()
+    dontNotif = True
+    setNotifImg(False)
 
 
 def updateChatMessages():
     global messagesList
+    global prevMessagesList
     global top
     global driver
     global imageUrls
+    global dontNotif
+    global closed
+
+    notif = False
+    prevMessagesList = list(map(lambda x: x["text"], messagesList))
 
     imageUrls = []
     allMessagesText = []
@@ -206,15 +249,35 @@ def updateChatMessages():
         for i in range(numberOfMessagesShown):
             messagesList[i]["text"] = ""
 
+    if dontNotif or not closed:
+        dontNotif = False
+    else:
+        try:
+            if (len(messagesList) != len(prevMessagesList)):
+                notif = True
+            else:
+                for i in range(len(messagesList)):
+                    if (messagesList[i]["text"] != prevMessagesList[i]):
+                        notif = True
+                        break
+            if (notif):
+                setNotifImg(True)
+        except:
+            pass
+
     top.after(1000, updateChatMessages)
 
 
 def sendMessage(driver, value):
+    global dontNotif
+
     try:
         inputBox = driver.find_element_by_class_name(
             "DuUXI").find_element_by_class_name("_1awRl")
         inputBox.send_keys(value)
         inputBox.send_keys('\ue007')
+        dontNotif = True
+        setNotifImg(False)
     except:
         pass
 
@@ -235,6 +298,7 @@ if (qrCode):
 
     img = ImageTk.PhotoImage(Image.open(currentPath + "check.png"))
     qrCodeImg = tkinter.Label(top, image=img)
+    qrCodeImg.configure(bg="#FFFFFF")
     qrCodeImg.pack(side="bottom", fill="both", expand="yes")
     windowHeight = 300
     windowWidth = 300
@@ -253,9 +317,7 @@ if (qrCode):
         qrCodeScanned = False
 
 if (not qrCodeScanned):
-    driver.quit()
-    top.destroy()
-    exit()
+    exitApp()
 
 if (loadingText):
     loadingText.destroy()
@@ -264,6 +326,7 @@ if (qrCodeImg):
     top.update()
 
 loadingText = tkinter.Label(top, text="Loading...")
+loadingText.configure(bg="#2a2f32", fg="#e1e2e3")
 loadingText.pack(side="bottom", fill="both", expand="yes")
 windowHeight = screenMinHeight
 windowWidth = 300
@@ -286,20 +349,28 @@ closeButton.config(width=2)
 closeButton.pack(side=tkinter.LEFT, anchor=tkinter.NW)"""
 
 topFrame = tkinter.Frame(top)
+topFrame.configure(bg="#2a2f32")
 topFrame.pack(side=tkinter.TOP, fill="x", expand=True)
 
-closeButton = tkinter.Button(topFrame, text="X", command=closeButton)
-closeButton.config(width=2)
-closeButton.pack(side=tkinter.LEFT)
+closeButton = tkinter.Button(
+    topFrame, text="X", command=closeButton, highlightthickness=0, bd=0, relief='flat')
+closeButton.configure(width=2, bg="#2a2f32", fg="#e1e2e3",
+                      activebackground='#323739', activeforeground='#e1e2e3')
+closeButton.pack(side=tkinter.LEFT, fill="y")
 
 dropDownMenu = tkinter.OptionMenu(topFrame, listChatNames, *chatContactsListNames,
                                   command=lambda currentChatName: setCurrentChat(currentChatName, chatContactsListNames, chatContactsList))
-dropDownMenu.config(width=5)
+dropDownMenu.configure(width=5, bg="#2a2f32", fg="#e1e2e3",
+                       activebackground='#323739', activeforeground='#e1e2e3', highlightthickness=0, bd=0, relief='flat', indicatoron=0, compound='right')
+dropDownMenu["menu"].config(bg="#2a2f32", fg="#e1e2e3",
+                            activebackground='#323739', activeforeground='#e1e2e3', bd=0, relief='flat')
 dropDownMenu.pack(side=tkinter.LEFT, fill="x", expand=True)
 
-minimiseButton = tkinter.Button(topFrame, text="ᐯ", command=minimiseButton)
-minimiseButton.config(width=2)
-minimiseButton.pack(side=tkinter.LEFT)
+minimiseButton = tkinter.Button(
+    topFrame, text="ᐯ", command=minimiseButton, highlightthickness=0, bd=0, relief='flat')
+minimiseButton.configure(width=2, bg="#2a2f32", fg="#e1e2e3",
+                         activebackground='#323739', activeforeground='#e1e2e3')
+minimiseButton.pack(side=tkinter.LEFT, fill="y")
 
 windowHeight = screenMaxHeight
 windowWidth = 300
@@ -313,14 +384,25 @@ for i in range(numberOfMessagesShown):
     messagesList.append(message)
 
 for message in messagesList:
-    message.config(width=150)
+    message.configure(width=150, bg="#0d1418", fg="#e1e1e2")
     message.pack(side=tkinter.TOP, fill="x", expand=True)
 
-inputBox = tkinter.Entry(top)
+
+bottomFrame = tkinter.Frame(top)
+bottomFrame.configure(bg="#33383b")
+bottomFrame.pack(side=tkinter.TOP, fill="x", expand=True)
+
+inputBox = tkinter.Label(bottomFrame)
+inputBox.configure(width="2", bg="#33383b", fg="#e1e1e2",
+                   highlightthickness=0, bd=0, relief='flat')
+inputBox.pack(side=tkinter.LEFT)
+
+inputBox = tkinter.Entry(bottomFrame)
 inputBox.bind("<Return>", (lambda event: sendMessage(
     driver, inputBox.get()) or inputBox.delete(0, 'end')))
-inputBox.config(width=150)
-inputBox.pack(side=tkinter.TOP, fill="x", expand=True)
+inputBox.configure(bg="#33383b", fg="#e1e1e2",
+                   highlightthickness=0, bd=0, relief='flat', insertbackground="#FFFFFF")
+inputBox.pack(side=tkinter.LEFT, fill="x", expand=True)
 top.update()
 time.sleep(2)
 
@@ -328,8 +410,4 @@ top.after(1, updateChatMessages)
 
 top.mainloop()
 
-if os.path.exists(currentPath + "check.png"):
-    os.remove(currentPath + "check.png")
-
-driver.quit()
-top.destroy()
+exitApp()
