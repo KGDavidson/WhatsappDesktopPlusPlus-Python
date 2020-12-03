@@ -10,6 +10,8 @@
 
 - [x] Get Chats List
 - [x] Get Messages
+- [x] Support for Image Messages
+- [x] Copy Message Contents to Clipboard on Click
 - [x] Send Messages
 - [x] Handle Long Messages
 - [x] Minimise and Close Buttons
